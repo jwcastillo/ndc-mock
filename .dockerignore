@@ -1,0 +1,7 @@
+*
+!edge/
+!routes.json
+!versions.json
+!airlines.json
+!translations/
+edge/ndc-edge-mock

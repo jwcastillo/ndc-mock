@@ -1,0 +1,94 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  go:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+      - name: vet, format, unit tests with the race detector
+        run: |
+          for m in edge client; do
+            (cd $m && go vet ./... && test -z "$(gofmt -l .)" && go test -race ./...)
+          done
+
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: shellcheck -S warning check-*.sh capture/capture.sh
+
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: no credentials, no provider data
+        run: |
+          if grep -rniE '(password|secret|token|api[_-]?key)[[:space:]]*[:=][[:space:]]*"[^"]{8,}"' \
+               --include='*.go' --include='*.json' --include='*.sh' . | grep -v '^./local/'; then
+            echo "possible secret committed"; exit 1
+          fi
+          if git ls-files --error-unmatch capture/rs >/dev/null 2>&1; then
+            echo "captured provider responses are tracked and must not be"; exit 1
+          fi
+
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t ndc-mock:ci .
+
+  # End to end needs a reference response, which is provider data and never in
+  # the repository. Set the STUBS_URL variable (a tarball of the stubs
+  # directory) to enable it; STUBS_TOKEN is sent as a bearer if the URL needs it.
+  # IATA_XSD_URL (a tarball with 19.2/, 21.3/, 24.1/ and 24.4/, each holding the
+  # unpacked schema distribution) adds schema validation of every translated
+  # generation; the schemas are IATA-licensed and not in the repository either.
+  suite:
+    if: vars.STUBS_URL != ''
+    needs: [go, image]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+      - run: sudo apt-get install -y -qq libxml2-utils >/dev/null
+      - name: fetch the reference response
+        env:
+          STUBS_URL: ${{ vars.STUBS_URL }}
+          STUBS_TOKEN: ${{ secrets.STUBS_TOKEN }}
+        run: |
+          mkdir stubs
+          curl -sfL ${STUBS_TOKEN:+-H "Authorization: Bearer $STUBS_TOKEN"} "$STUBS_URL" | tar -xz -C stubs
+      - name: end to end
+        run: |
+          make build
+          ./edge/ndc-edge-mock -stubs "$PWD/stubs" -config routes.json -versions versions.json \
+            -airlines airlines.json -translations translations > /tmp/edge.log 2>&1 &
+          for _ in $(seq 60); do curl -sf -o /dev/null localhost:8090/__health && break; sleep 1; done
+          make edge-check check-flow check-xlate check-proxy check-mcp check-replicas bruno STUBS="$PWD/stubs"
+      - name: every generation validates against the official schemas
+        if: vars.IATA_XSD_URL != ''
+        env:
+          IATA_XSD_URL: ${{ vars.IATA_XSD_URL }}
+          STUBS_TOKEN: ${{ secrets.STUBS_TOKEN }}
+        run: |
+          mkdir xsd
+          curl -sfL ${STUBS_TOKEN:+-H "Authorization: Bearer $STUBS_TOKEN"} "$IATA_XSD_URL" | tar -xz -C xsd
+          tools/validate-translation.sh v192 xsd/19.2
+          tools/validate-translation.sh v213 xsd/21.3
+          tools/validate-translation.sh v241 xsd/24.1
+          tools/validate-translation.sh v244 xsd/24.4
+      - if: failure()
+        run: cat /tmp/edge.log

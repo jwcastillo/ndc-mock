@@ -1,0 +1,2 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<IATA_SeatAvailabilityRQ xmlns="http://www.iata.org/IATA/2015/00/2019.2/IATA_SeatAvailabilityRQ"><Request><CoreRequest><Offer><OfferID>__OFFER_ID__</OfferID><OwnerCode>__OWNER__</OwnerCode></Offer></CoreRequest>__PAXES__</Request></IATA_SeatAvailabilityRQ>

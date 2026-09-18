@@ -1,0 +1,21 @@
+{
+  "_comment": "Carrier profiles. Fares keep the DISTRIBUTION of the reference response (real pricing logic produces a spread across brands and cabins that is hard to fake); only currency and magnitude are adjusted. fareScale and fxToUSD are calibration knobs - set them from your own data. hubs are used to flag routes a carrier would not plausibly serve.",
+  "airlines": {
+    "AA": {"name": "Reference carrier A", "currency": "USD", "hubs": ["MIA", "DFW", "JFK", "CLT"], "fareScale": 1.15, "flightRange": [1, 3000]},
+    "AV": {"name": "Reference carrier B", "currency": "COP", "hubs": ["BOG", "MDE", "SAL"], "fareScale": 0.9, "flightRange": [1, 900]},
+    "IB": {"name": "Reference carrier C", "currency": "EUR", "hubs": ["MAD", "BCN"], "fareScale": 1.25, "flightRange": [3000, 7000]},
+    "AF": {"name": "Reference carrier D", "currency": "EUR", "hubs": ["CDG", "ORY"], "fareScale": 1.3, "flightRange": [1, 2000]},
+    "CM": {"name": "Reference carrier E", "currency": "USD", "hubs": ["PTY"], "fareScale": 1.05, "flightRange": [100, 900]}
+  },
+  "fxToUSD": {
+    "USD": 1.0,
+    "EUR": 1.08,
+    "GBP": 1.27,
+    "BRL": 0.185,
+    "CLP": 0.00105,
+    "COP": 0.00025,
+    "PEN": 0.27,
+    "MXN": 0.055,
+    "ARS": 0.001
+  }
+}

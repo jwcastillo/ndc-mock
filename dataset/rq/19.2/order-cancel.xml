@@ -1,0 +1,2 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<IATA_OrderCancelRQ xmlns="http://www.iata.org/IATA/2015/00/2019.2/IATA_OrderCancelRQ"><Party><Sender><TravelAgency><AgencyID>00000000</AgencyID></TravelAgency></Sender></Party><Request><Order><OrderID>__ORDER_ID__</OrderID><OwnerCode>__OWNER__</OwnerCode></Order></Request></IATA_OrderCancelRQ>

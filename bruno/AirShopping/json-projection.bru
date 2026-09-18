@@ -1,0 +1,72 @@
+meta {
+  name: JSON projection
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/ndc/{{version}}/airshopping
+  body: xml
+  auth: none
+}
+
+headers {
+  Content-Type: application/xml
+  Accept: application/json
+  Authorization: Bearer {{accessToken}}
+}
+
+body:xml {
+<?xml version="1.0" encoding="UTF-8"?>
+    <IATA_AirShoppingRQ xmlns="http://www.iata.org/IATA/2015/00/2019.2/IATA_AirShoppingRQ">
+      <MessageDoc><RefVersionNumber>1.0</RefVersionNumber></MessageDoc>
+      <Party>
+        <Participant><Aggregator><AggregatorID>88888888</AggregatorID><Name>Aggregator</Name></Aggregator></Participant>
+        <Sender><TravelAgency>
+          <AgencyID>00000000-0000-0000-0000-000000000000</AgencyID>
+          <IATA_Number>00000000</IATA_Number>
+          <Name>Agency</Name>
+          <TravelAgent><TravelAgentID>agent@example.com</TravelAgentID></TravelAgent>
+        </TravelAgency></Sender>
+      </Party>
+      <POS><City><IATA_LocationCode>SCL</IATA_LocationCode></City><Country><CountryCode>CL</CountryCode></Country><RequestTime>2018-10-12T07:38:00</RequestTime></POS>
+      <Request>
+        <FlightCriteria>
+          <OriginDestCriteria>
+            <DestArrivalCriteria><IATA_LocationCode>{{destination}}</IATA_LocationCode></DestArrivalCriteria>
+            <OriginDepCriteria><Date>{{departDate}}</Date><IATA_LocationCode>{{origin}}</IATA_LocationCode></OriginDepCriteria>
+          </OriginDestCriteria>
+          <OriginDestCriteria>
+            <DestArrivalCriteria><IATA_LocationCode>{{origin}}</IATA_LocationCode></DestArrivalCriteria>
+            <OriginDepCriteria><Date>{{returnDate}}</Date><IATA_LocationCode>{{destination}}</IATA_LocationCode></OriginDepCriteria>
+          </OriginDestCriteria>
+        </FlightCriteria>
+        <Paxs><Pax><PaxID>ADT_1</PaxID><PTC>ADT</PTC></Pax></Paxs>
+        <ShoppingCriteria>
+          <CabinTypeCriteria><CabinTypeCode/></CabinTypeCriteria>
+          <ConnectionCriteria><ConnectionPrefID>CONN_1</ConnectionPrefID><MaximumConnectionQty>1</MaximumConnectionQty><StationCriteria/></ConnectionCriteria>
+        </ShoppingCriteria>
+      </Request>
+    </IATA_AirShoppingRQ>
+}
+
+tests {
+  test("200 OK", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+  test("returns the BFF projection", function() {
+    expect(res.getBody().offerCount).to.be.above(0);
+    expect(res.getBody().offers[0].price.currency).to.be.a("string");
+  });
+  test("offer count agrees with the echoed header", function() {
+    expect(String(res.getBody().offerCount)).to.equal(res.getHeader("x-mock-offers"));
+  });
+}
+
+docs {
+  The same request, returned as the reduced JSON a BFF would expose instead of
+  NDC XML. Selected with Accept: application/json or ?format=json.
+
+  The projection is built from decoded offer identifiers, not by converting the
+  XML, so it stays cheap regardless of how large the NDC document would be.
+}

@@ -1,0 +1,2 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<IATA_ServiceListRQ xmlns="http://www.iata.org/IATA/2015/00/2019.2/IATA_ServiceListRQ"><Request><CoreRequest><Offer><OfferID>__OFFER_ID__</OfferID><OfferItem><OfferItemID>__OFFER_ITEM_ID__</OfferItemID></OfferItem><OwnerCode>__OWNER__</OwnerCode></Offer></CoreRequest>__PAXES__</Request></IATA_ServiceListRQ>

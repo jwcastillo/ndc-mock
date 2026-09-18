@@ -1,0 +1,45 @@
+{
+  "_comment": "IATA NDC version profiles. Each entry maps a URL path segment to the element names the engine needs to slice a reference response. Add a version by dropping a reference response into stubs/<dir>/ and declaring its element names here — the engine itself is version-agnostic.",
+  "versions": {
+    "v192": {
+      "iata": "19.2",
+      "namespace": "http://www.iata.org/IATA/2015/00/2019.2/IATA_AirShoppingRS",
+      "offerElement": "Offer",
+      "idElements": [
+        "OfferID",
+        "OfferItemID"
+      ],
+      "stubs": "19.2"
+    },
+    "v213": {
+      "iata": "21.3",
+      "namespace": "http://www.iata.org/IATA/2015/EASD/00/IATA_OffersAndOrdersMessage",
+      "offerElement": "Offer",
+      "idElements": [
+        "OfferID",
+        "OfferItemID"
+      ],
+      "stubs": "21.3"
+    },
+    "v241": {
+      "iata": "24.1",
+      "namespace": "http://www.iata.org/IATA/2015/EASD/00/IATA_OffersAndOrdersMessage",
+      "offerElement": "Offer",
+      "idElements": [
+        "OfferID",
+        "OfferItemID"
+      ],
+      "stubs": "24.1"
+    },
+    "v244": {
+      "iata": "24.4",
+      "namespace": "http://www.iata.org/IATA/2015/EASD/00/IATA_OffersAndOrdersMessage",
+      "offerElement": "Offer",
+      "idElements": [
+        "OfferID",
+        "OfferItemID"
+      ],
+      "stubs": "24.4"
+    }
+  }
+}

@@ -1,0 +1,2 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<IATA_OrderCreateRQ xmlns="http://www.iata.org/IATA/2015/00/2019.2/IATA_OrderCreateRQ"><Party><Sender><TravelAgency><AgencyID>00000000</AgencyID></TravelAgency></Sender></Party><Request><CreateOrder><SelectedOffer><OfferRefID>__OFFER_ID__</OfferRefID><OwnerCode>__OWNER__</OwnerCode><SelectedOfferItem><OfferItemRefID>__OFFER_ITEM_ID__</OfferItemRefID>__PAX_REFS__</SelectedOfferItem></SelectedOffer></CreateOrder>__PAX_LIST__</Request></IATA_OrderCreateRQ>

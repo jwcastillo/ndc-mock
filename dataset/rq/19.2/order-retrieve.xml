@@ -1,0 +1,2 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<IATA_OrderRetrieveRQ xmlns="http://www.iata.org/IATA/2015/00/2019.2/IATA_OrderRetrieveRQ"><Request><OrderFilterCriteria><Order><OrderID>__ORDER_ID__</OrderID><OwnerCode>__OWNER__</OwnerCode></Order></OrderFilterCriteria></Request></IATA_OrderRetrieveRQ>

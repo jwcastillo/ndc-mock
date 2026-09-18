@@ -1,0 +1,23 @@
+# Environment-specific downstream stubs and runner workspace (not part of the tool)
+local/
+
+# Captured reference responses: provider data, never distributed
+capture/rs/
+capture/.st-creds
+
+# Secrets
+*.env
+!*.env.example
+
+# Build output
+edge/ndc-edge-mock
+
+# Compiled clients
+bin/
+client/cmd/ndc/ndc
+client/cmd/ndc-mcp/ndc-mcp
+edge/edge
+__pycache__/
+
+# Reference responses: provider data, never distributed (a symlink is fine)
+/stubs

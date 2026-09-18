@@ -1,0 +1,66 @@
+meta {
+  name: Simulated latency
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/ndc/{{version}}/airshopping
+  body: xml
+  auth: none
+}
+
+headers {
+  Content-Type: application/xml
+  Accept: application/xml
+  Authorization: Bearer {{accessToken}}
+  X-Mock-Delay: 400ms
+}
+
+body:xml {
+<?xml version="1.0" encoding="UTF-8"?>
+    <IATA_AirShoppingRQ xmlns="http://www.iata.org/IATA/2015/00/2019.2/IATA_AirShoppingRQ">
+      <MessageDoc><RefVersionNumber>1.0</RefVersionNumber></MessageDoc>
+      <Party>
+        <Participant><Aggregator><AggregatorID>88888888</AggregatorID><Name>Aggregator</Name></Aggregator></Participant>
+        <Sender><TravelAgency>
+          <AgencyID>00000000-0000-0000-0000-000000000000</AgencyID>
+          <IATA_Number>00000000</IATA_Number>
+          <Name>Agency</Name>
+          <TravelAgent><TravelAgentID>agent@example.com</TravelAgentID></TravelAgent>
+        </TravelAgency></Sender>
+      </Party>
+      <POS><City><IATA_LocationCode>SCL</IATA_LocationCode></City><Country><CountryCode>CL</CountryCode></Country><RequestTime>2018-10-12T07:38:00</RequestTime></POS>
+      <Request>
+        <FlightCriteria>
+          <OriginDestCriteria>
+            <DestArrivalCriteria><IATA_LocationCode>{{destination}}</IATA_LocationCode></DestArrivalCriteria>
+            <OriginDepCriteria><Date>{{departDate}}</Date><IATA_LocationCode>{{origin}}</IATA_LocationCode></OriginDepCriteria>
+          </OriginDestCriteria>
+          <OriginDestCriteria>
+            <DestArrivalCriteria><IATA_LocationCode>{{origin}}</IATA_LocationCode></DestArrivalCriteria>
+            <OriginDepCriteria><Date>{{returnDate}}</Date><IATA_LocationCode>{{destination}}</IATA_LocationCode></OriginDepCriteria>
+          </OriginDestCriteria>
+        </FlightCriteria>
+        <Paxs><Pax><PaxID>ADT_1</PaxID><PTC>ADT</PTC></Pax></Paxs>
+        <ShoppingCriteria>
+          <CabinTypeCriteria><CabinTypeCode/></CabinTypeCriteria>
+          <ConnectionCriteria><ConnectionPrefID>CONN_1</ConnectionPrefID><MaximumConnectionQty>1</MaximumConnectionQty><StationCriteria/></ConnectionCriteria>
+        </ShoppingCriteria>
+      </Request>
+    </IATA_AirShoppingRQ>
+}
+
+tests {
+  test("200 OK", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+  test("applied the simulated latency", function() {
+    expect(res.getResponseTime()).to.be.above(350);
+  });
+}
+
+docs {
+  Adds latency per request. Use this to model a real provider's p50/p95 - an
+  instant mock measures your service in a vacuum.
+}

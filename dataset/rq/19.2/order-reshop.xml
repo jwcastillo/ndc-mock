@@ -1,0 +1,2 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<IATA_OrderReshopRQ xmlns="http://www.iata.org/IATA/2015/00/2019.2/IATA_OrderReshopRQ"><Request><OrderRefID>__ORDER_ID__</OrderRefID><UpdateOrder><RepriceOrder/></UpdateOrder></Request></IATA_OrderReshopRQ>

@@ -1,0 +1,13 @@
+{
+  "_comment": "Per-route simulation profile. offers 0 = as many as the reference response holds. delay: \"850ms\" fixed or \"850ms~2.4s\" p50~p95, empty = none. Real latency is NOT measured here - take p50/p95 from your own observability before trusting a benchmark. airline empty = keep the reference carrier.",
+  "default": { "offers": 0, "delay": "", "airline": "" },
+  "routes": {
+    "GRU-NAT": { "offers": 64, "delay": "", "airline": "" },
+    "GRU-GIG": { "offers": 256, "delay": "", "airline": "" },
+    "GRU-RIO": { "offers": 484, "delay": "", "airline": "" },
+    "MAD-GRU": { "offers": 320, "delay": "", "airline": "IB" },
+    "MIA-JFK": { "offers": 180, "delay": "", "airline": "AA" },
+    "BOG-MDE": { "offers": 96, "delay": "", "airline": "AV" }
+  },
+  "operations": {}
+}

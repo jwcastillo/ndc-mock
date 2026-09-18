@@ -1,0 +1,35 @@
+meta {
+  name: Token
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/oauth/token
+  body: formUrlEncoded
+  auth: none
+}
+
+headers {
+  Content-Type: application/x-www-form-urlencoded
+}
+
+body:form-urlencoded {
+  grant_type: client_credentials
+}
+
+script:post-response {
+  bru.setEnvVar("accessToken", res.body.access_token);
+}
+
+tests {
+  test("returns a token", function() {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.body.access_token).to.be.a("string");
+  });
+}
+
+docs {
+  The mock accepts any credentials by design - running without secrets is the point.
+  Stores the token in {{accessToken}} for the requests that follow.
+}
