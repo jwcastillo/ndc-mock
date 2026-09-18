@@ -2,6 +2,8 @@
 # Records a real AirShopping response. Read-only. Writes to capture/rs/.
 # Provider URL, credentials and agency identity come from the environment.
 # Usage: ./capture.sh GRU NAT 2026-09-30 [2026-10-02]
+# HEADERS="X-Vendor-Country: BR; X-Vendor-Trace: {uuid}" adds a provider's own headers;
+# {uuid} becomes a fresh identifier.
 set -uo pipefail
 O=$1 D=$2 DEP=$3 RET=${4:-}
 set -a; : "${NDC_BASE_URL:?set the provider base URL}" "${TOKEN_KEY:?set it}" "${TOKEN_PWD:?set it}" "${API_KEY:?set it}"
@@ -48,10 +50,11 @@ $program
 XML
 )
 out="$(dirname "$0")/rs/airshopping-${O}-${D}.xml"
+extra=(); IFS=';' read -ra hs <<<"${HEADERS:-}"
+for h in "${hs[@]}"; do h=$(sed 's/^ *//; s/ *$//' <<<"$h"); [ -n "$h" ] && extra+=(-H "${h//\{uuid\}/$(uuidgen)}"); done
 code=$(curl -s -m 120 -o "$out" -w '%{http_code}' -X POST "${NDC_BASE_URL}/ndc/${NDC_VERSION}/airshopping" \
   -H "Authorization: Bearer $TOK" -H "X-Api-Key: ${API_KEY}" \
-  -H 'Content-Type: application/xml' -H "X-Country: ${POS_COUNTRY}" -H "Accept-Language: ${LANG}" \
-  -H "X-Track-Id: $(uuidgen)" \
+  -H 'Content-Type: application/xml' -H "Accept-Language: ${LANG}" "${extra[@]}" \
   --data-binary "$rq")
 sz=$(wc -c <"$out" | tr -d ' ')
 echo "$O-$D: http $code, $((sz/1024)) KB -> $out"

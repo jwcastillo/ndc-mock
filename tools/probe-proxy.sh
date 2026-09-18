@@ -40,7 +40,7 @@ path() {
 REC="$R/capture/rs/proxy"; mkdir -p "$REC"
 t=$(mktemp -d)
 IFS=';' read -ra extra <<<"${HEADERS:-}"
-forward="Authorization,X-Api-Key,Accept-Language,X-Country,X-Track-Id"
+forward="Authorization,X-Api-Key,Accept-Language"
 for h in "${extra[@]}"; do n=$(sed 's/:.*//; s/^ *//; s/ *$//' <<<"$h"); [ -n "$n" ] && forward+=",$n"; done
 
 "$R/edge/ndc-edge-mock" -addr ":$PORT" -stubs "$STUBS" -config "$R/routes.json" \
@@ -100,8 +100,8 @@ call() { # label operation body-file
   done
   curl -s -m 180 -D "$t/h" -o "$t/$1.xml" -w '%{http_code}' -X POST "localhost:$PORT/ndc/$NDC_VERSION/$(path "$2")" \
     -H "Authorization: Bearer $tok" -H "X-Api-Key: $API_KEY" \
-    -H 'Content-Type: application/xml' -H "X-Country: $POS_COUNTRY" -H "Accept-Language: $LANG_CODE" \
-    -H "X-Track-Id: $(uuidgen)" "${args[@]}" --data-binary @"$3" > "$t/code"
+    -H 'Content-Type: application/xml' -H "Accept-Language: $LANG_CODE" \
+    "${args[@]}" --data-binary @"$3" > "$t/code"
   local mode err
   mode=$(grep -i '^x-mock-mode:' "$t/h" | tr -d '\r' | awk '{print $2}')
   err=$(python3 -c "import re,sys;e=re.search(r'<Error>(.*?)</Error>',open(sys.argv[1]).read(),re.S);print(' '.join(re.findall(r'<(?:Code|DescText)>([^<]{1,120})',e.group(1))) if e else '')" "$t/$1.xml")
