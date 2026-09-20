@@ -102,3 +102,37 @@ func TestWrapEach(t *testing.T) {
 		t.Errorf("got\n%s\nwant\n%s", got, want)
 	}
 }
+
+// 21.3 renames SurchargeInfo to PaymentSurcharge and strips the PaymentFee prefix
+// from every child. The container rename on its own produces a document that looks
+// converted and is not: xmllint rejects it on the first child against
+// PaymentSurchargeType, which is why the six scoped child renames are in the mapping.
+func TestSurchargeInfoRename(t *testing.T) {
+	ms, err := loadMappings("../translations")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, to := range []string{"21.3", "24.1", "24.4"} {
+		m := ms.byPair["19.2->"+to]
+		if m == nil {
+			t.Fatalf("no 19.2->%s mapping", to)
+		}
+		in := `<IATA_AirShoppingRS xmlns="http://www.iata.org/IATA/2015/00/2019.2/IATA_AirShoppingRS">` +
+			`<Response><PaymentFunctions><PaymentSupportedMethod><SurchargeInfo>` +
+			`<PaymentFeeAmountRangeMaximumAmount CurCode="USD">50.00</PaymentFeeAmountRangeMaximumAmount>` +
+			`<PaymentFeeRoundingPrecisionCode>Up</PaymentFeeRoundingPrecisionCode>` +
+			`</SurchargeInfo></PaymentSupportedMethod></PaymentFunctions></Response></IATA_AirShoppingRS>`
+		got := translateString(t, m, in)
+		for _, want := range []string{
+			`<PaymentSurcharge><AmountRangeMaximumAmountCurCode="USD">50.00</AmountRangeMaximumAmount>` +
+				`<RoundingPrecisionCode>Up</RoundingPrecisionCode></PaymentSurcharge>`,
+		} {
+			if !strings.Contains(got, want) {
+				t.Errorf("19.2->%s: missing\n%s\nin\n%s", to, want, got)
+			}
+		}
+		if strings.Contains(got, "PaymentFee") {
+			t.Errorf("19.2->%s: a PaymentFee-prefixed child survived:\n%s", to, got)
+		}
+	}
+}

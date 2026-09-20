@@ -23,7 +23,14 @@
     "AddOfferItem": "AddedOfferItem",
     "ReshopPrice/AddPrice": "PriceAndFareDetails",
     "ALaCarteOffer/ALaCarteOfferItem": "OfferItem",
-    "Eligibility/FlightAssociations": "OfferFlightAssociations"
+    "Eligibility/FlightAssociations": "OfferFlightAssociations",
+    "SurchargeInfo": "PaymentSurcharge",
+    "SurchargeInfo/PaymentFeeAmountRangeMaximumAmount": "AmountRangeMaximumAmount",
+    "SurchargeInfo/PaymentFeeAmountRangeMinimumAmount": "AmountRangeMinimumAmount",
+    "SurchargeInfo/PaymentFeePercentageRangeMaximumPercent": "PercentageRangeMaximumPercent",
+    "SurchargeInfo/PaymentFeePercentageRangeMinimumPercent": "PercentageRangeMinimumPercent",
+    "SurchargeInfo/PaymentFeeRoundingNumberOfDecimalsNumber": "RoundingNumberOfDecimalsNumber",
+    "SurchargeInfo/PaymentFeeRoundingPrecisionCode": "RoundingPrecisionCode"
   },
   "drop": [
     "CancelFeeInd",
@@ -505,6 +512,7 @@
     "RENAMES: SeatProfile/CharacteristicCode -> SeatCharacteristicCode; Service/ServiceAssociations -> OfferServiceAssociation; BaggageFlightAssociations -> OfferFlightAssociations; scoped Offer/BaggageAllowance -> BaggageAssociations (DataLists' BaggageAllowance keeps its name). WRAPS: PaxSegmentRefID in PaxSegmentReferences, PaxJourneyRefID in PaxJourneyRef. HOIST: FareRule/PenaltyRefID up to FareDetail.",
     "DROPS (name absent from the target, or from that parent): Penalty/{AppCode,CancelFeeInd,ChangeFeeInd,UpgradeFeeInd,PenaltyPercent}; BaggageAllowance/ApplicableBagText; PieceAllowance/{ApplicablePartyText,Desc}; WeightAllowance/{ApplicablePartyText,DescText}; DataLists/{FareList,MediaList}; Offer/WebAddressURL (21.3 has it on OfferItem as WebAddressURI); ALaCarteOffer/OwnerTypeCode.",
     "VALUES: FarePriceTypeCode is a closed list from 21.3 (Filed, Net). The provider's SELL_AMOUNT is the selling price of a published fare, which is Filed.",
+    "SURCHARGE: SurchargeInfo -> PaymentSurcharge, and every child loses its PaymentFee prefix (PaymentFeeAmountRangeMaximumAmount -> AmountRangeMaximumAmount, and so on). Read first by compare-paths.py --typesafe, which proposed the container rename at 0.99 and said nothing about the children; confirmed against PaymentSurchargeType in the target XSD, where the container rename alone fails xmllint on the first child. 21.3 also adds PreciseAmount and PrecisePercent, which 19.2 has no source for. Outside the validated response flow - the mock emits no PaymentFunctions - so this one serves proxy mode, and TestSurchargeInfoRename is what holds it.",
     "Scope: AirShoppingRS (one way, return, multi-city), OfferPriceRS, ServiceListRS, SeatAvailabilityRS, OrderViewRS and OrderReshopRS, for the elements the references and builders produce."
   ]
 }
