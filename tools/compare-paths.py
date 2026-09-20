@@ -15,12 +15,15 @@ what it nearly thought instead. Wraps it settles in code; the rest is one TypeSa
 Choice over the elements that appeared under the same parent, with their subtrees,
 which is evidence derive-mapping.py does not have when it compares bare names.
 
-There is no threshold and nothing is auto-accepted, because confidence does not
-separate the two answers worth separating: on the renames translations/19.2-to-21.3.json
-confirms against the XSDs, the model names the right element every time, at
-confidences that overlap the paths whose real answer is a restructure. A wrap makes
-both answers partly true. So it reads, you decide, and translations/*.json still
-rests on what you confirm here.
+There is no threshold and nothing is auto-accepted. On the real schemas (19.2
+IATA_AirShoppingRS.xsd against the 21.3 and 24.1 distributions) the readings agree
+with the shipped mapping on 19 of the 22 paths it covers, on both pairs. Renames are
+the reliable half: 4 of 4 each time, 0.71 to 0.97, and nothing the mapping drops was
+ever read as a rename. The three misses are all a drop read as a restructure, because
+the parent gained unrelated children - and no rule separates those from a rename,
+since CharacteristicCode also disappears entirely from 21.3 and is one. Trust a
+rename reading; check a restructure yourself. translations/*.json still rests on what
+you confirm here.
 
 Either side can be an XSD or a diagram; prefer XSD on both when you have it.
 

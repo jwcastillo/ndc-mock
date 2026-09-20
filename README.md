@@ -311,11 +311,18 @@ close. Wraps are settled in code, from the paths alone: the old name reappearing
 or a candidate with one child carrying the old subtree, both prove a new level rather than a new
 name. Only what that cannot decide is asked.
 
-Nothing is auto-accepted and there is no threshold. Measured against the four renames this mapping
-already confirms against the XSDs, the model names the right element 4 times out of 4 — at
-confidences from 0.23 to 0.73, which overlap the paths whose real answer is a restructure. With a
-wrap both answers are partly true, so confidence cannot separate them and the reading stays a
-reading. It follows `xs:import`, which matters because
+Nothing is auto-accepted and there is no threshold. Measured on the real schemas — 19.2
+`IATA_AirShoppingRS.xsd` against the 21.3 and the 24.1 distributions, 87 and 86 unresolved paths,
+about 3 seconds and one request each — the readings agree with the shipped mapping on **19 of the
+22 paths that mapping covers**, the same score on both pairs. Every rename is right: 4 of 4 per
+pair, at 0.71 to 0.97, and no path the mapping drops was ever read as a rename.
+
+The three disagreements are the same failure both times, and they are the reason there is no
+threshold. `DataLists/FareList`, `DataLists/MediaList` and `Offer/OwnerTypeCode` are drops, and all
+three were read as restructures at 0.81, 0.62 and 0.41 — the parent gained unrelated children and
+that was enough. Nothing in the paths separates them from a rename, either: `CharacteristicCode`
+also vanishes from 21.3 completely and *is* renamed. Trust a rename reading; check a restructure
+yourself. It follows `xs:import`, which matters because
 from 21.3 the types live in `IATA_OffersAndOrdersCommonTypes.xsd`. It also reads IATA's SVG
 diagrams, and on 24.1 it agrees with the XSD on 2,046 of 2,054 paths (the gap is digital-signature
 elements). `validate-translation.sh` then has the final word.

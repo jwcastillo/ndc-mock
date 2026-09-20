@@ -53,7 +53,7 @@ capacity for the life of the process. Buffers above 32 MiB are now dropped rathe
 
 ### Outbound call in `derive-mapping.py --typesafe` — accepted, off by default
 
-The flag sends IATA element **names** to `api.typesafe.ai` to order the review queue. No captured
+The flag sends IATA element **names** and their parent paths to `api.typesafe.ai` to order the review queue (`derive-mapping.py`) or annotate it (`compare-paths.py`). No captured
 response, no provider data and no client identity go with them; the request carries the two version
 numbers, the unresolved names and their candidates. It runs only when the flag is passed, which is
 once per new schema generation, on a developer machine — never in the mock's request path.
