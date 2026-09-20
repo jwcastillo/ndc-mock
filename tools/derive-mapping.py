@@ -31,12 +31,11 @@ from __future__ import annotations
 import argparse
 import difflib
 import json
-import os
 import re
 import sys
-import urllib.error
-import urllib.request
 from pathlib import Path
+
+import typesafe_client
 
 XSD_NS = "{http://www.w3.org/2001/XMLSchema}"
 NAME_RE = re.compile(r'<xs:element[^>]*\bname="([^"]+)"', re.I)
@@ -131,10 +130,8 @@ def pair_candidates(only_from: set[str], only_to: set[str]) -> list[tuple[str, s
     return pairs
 
 
-TYPESAFE_URL = "https://api.typesafe.ai/v1/systemone"
-SHORTLIST = 8          # candidate target names offered per source name
-QUESTIONS_PER_CALL = 32
 NO_MATCH = "none_of_these"
+SHORTLIST = 8          # candidate target names offered per source name
 
 RENAME_QUESTION = (
     "IATA renames some elements between NDC schema generations. Which of the target-schema "
@@ -151,30 +148,6 @@ def shortlist(name: str, targets: list[str], n: int = SHORTLIST) -> list[str]:
     return ranked[:n]
 
 
-def route(choice: str, confidence: float, threshold: float) -> str:
-    """Confidence decides whether to act on the answer, the answer decides what."""
-    if confidence < threshold:
-        return "human"
-    return "drop" if choice == NO_MATCH else "rename"
-
-
-def post(payload: dict, api_key: str) -> dict:
-    """The key lives in this header and nowhere else: not in argv, not in the output."""
-    req = urllib.request.Request(
-        TYPESAFE_URL,
-        data=json.dumps(payload).encode(),
-        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=120) as r:
-            return json.loads(r.read())
-    except urllib.error.HTTPError as e:
-        # Report the status, never the request: a traceback here would carry the header.
-        sys.exit(f"TypeSafe returned {e.code} {e.reason}")
-    except urllib.error.URLError as e:
-        sys.exit(f"TypeSafe unreachable: {e.reason}")
-
-
 def triage(names: list[str], targets: list[str], from_v: str, to_v: str,
            model: str, threshold: float) -> list[dict]:
     """Ask one Choice per unresolved source name; route each answer by its confidence.
@@ -182,44 +155,39 @@ def triage(names: list[str], targets: list[str], from_v: str, to_v: str,
     The model orders the review queue; it does not write the mapping. A rename it
     proposes still has to hold up on paths (compare-paths.py) and then validate.
     """
-    api_key = os.environ.get("TYPESAFE_API_KEY")
-    if not api_key:
-        sys.exit("TYPESAFE_API_KEY is not set. Export it from a gitignored *.env, the way\n"
-                 "the provider credentials are handled; get a key at https://console.typesafe.ai/")
     if not targets:
         return [{"source": n, "route": "drop", "choice": NO_MATCH, "confidence": 1.0,
                  "why": "the target inventory has no unmatched name left to rename to"}
                 for n in names]
 
+    options = {n: shortlist(n, targets) for n in names}
+    questions = {
+        n: {
+            "type": "choice",
+            "instructions": {"source_element": n, "question": RENAME_QUESTION},
+            "criteria": dict.fromkeys(options[n])
+            | {NO_MATCH: "`source_element` has no counterpart among the offered names."},
+        }
+        for n in names
+    }
     state = {
         "domain": "IATA NDC XML message schemas",
         "source_version": from_v,
         "target_version": to_v,
     }
-    out: list[dict] = []
-    for i in range(0, len(names), QUESTIONS_PER_CALL):
-        chunk = names[i:i + QUESTIONS_PER_CALL]
-        options = {n: shortlist(n, targets) for n in chunk}
-        questions = {
-            f"q{j}": {
-                "type": "choice",
-                "instructions": {"source_element": n, "question": RENAME_QUESTION},
-                "criteria": dict.fromkeys(options[n])
-                | {NO_MATCH: "`source_element` has no counterpart among the offered names."},
-            }
-            for j, n in enumerate(chunk)
-        }
-        answers = post({"state": state, "model": model, "questions": questions}, api_key)["answers"]
-        for j, n in enumerate(chunk):
-            a = answers[f"q{j}"]
-            out.append({
-                "source": n,
-                "choice": a["choice"],
-                "confidence": round(a["confidence"], 3),
-                "probability": round(a["probabilities"][a["choice"]], 3),
-                "route": route(a["choice"], a["confidence"], threshold),
-                "considered": options[n],
-            })
+    answers = typesafe_client.ask(state, questions, model)
+
+    out = []
+    for n in names:
+        choice, confidence, probability = typesafe_client.verdict(answers[n], threshold)
+        out.append({
+            "source": n,
+            "choice": answers[n]["choice"],
+            "confidence": confidence,
+            "probability": probability,
+            "route": "human" if not choice else ("drop" if choice == NO_MATCH else "rename"),
+            "considered": options[n],
+        })
     return out
 
 
@@ -230,10 +198,10 @@ def self_check() -> None:
     assert set(shortlist("RepriceOrder", ["ServiceOrder", "Baggage", "RepriceOrderRequest"], 2)) \
         == {"RepriceOrderRequest", "ServiceOrder"}, "the unrelated name must be cut, both plausible ones kept"
     assert shortlist("X", [], 3) == []
-    assert route("ServiceOrder", 0.9, 0.8) == "rename"
-    assert route(NO_MATCH, 0.9, 0.8) == "drop"
-    assert route("ServiceOrder", 0.7, 0.8) == "human", "below threshold never auto-decides"
-    assert route(NO_MATCH, 0.7, 0.8) == "human"
+    v = typesafe_client.verdict
+    assert v({"choice": "A", "confidence": 0.9, "probabilities": {"A": 0.9}}, 0.8)[0] == "A"
+    assert v({"choice": "A", "confidence": 0.7, "probabilities": {"A": 0.8}}, 0.8)[0] == "", \
+        "below threshold never auto-decides"
     print("self-check ok")
 
 
@@ -258,8 +226,8 @@ def main() -> None:
                          "Choice per name, and emit them as an ordered review queue. Needs "
                          "TYPESAFE_API_KEY. Still writes nothing into rename: a proposal is a "
                          "reading order for the reviewer, not a derivation from the schema.")
-    ap.add_argument("--typesafe-model", default="jev-latest")
-    ap.add_argument("--typesafe-confidence", type=float, default=0.8,
+    ap.add_argument("--typesafe-model", default=typesafe_client.DEFAULT_MODEL)
+    ap.add_argument("--typesafe-confidence", type=float, default=typesafe_client.DEFAULT_THRESHOLD,
                     help="below this the answer is not acted on and the name goes to a human "
                          "(default 0.8; evaluate it on your own schema pairs)")
     args = ap.parse_args()
