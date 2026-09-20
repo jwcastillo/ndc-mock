@@ -310,6 +310,30 @@ from 21.3 the types live in `IATA_OffersAndOrdersCommonTypes.xsd`. It also reads
 diagrams, and on 24.1 it agrees with the XSD on 2,046 of 2,054 paths (the gap is digital-signature
 elements). `validate-translation.sh` then has the final word.
 
+What string similarity cannot settle it dumps in a list for someone to read. `--typesafe` sorts
+that list instead, asking a [TypeSafe](https://typesafe.ai) Choice per leftover name — the closest
+target names plus *none of these* — and routing each answer by its own confidence into a proposed
+rename, a proposed drop, or too uncertain to say:
+
+```bash
+export TYPESAFE_API_KEY=...          # from a gitignored *.env, like the provider credentials
+tools/derive-mapping.py 19.2/ 25_1/ --from-version 19.2 --to-version 25.1 --typesafe
+```
+
+Only element **names** leave the machine, never a captured response, and the key is read from the
+environment alone: it is not a flag, and it is not written to the mapping.
+
+The proposals land in a `review` key, never in `rename`. Reading order is all they are: a rename
+still has to hold up on paths and then validate, because a wrong one produces a document that looks
+converted and is not.
+
+The default threshold of 0.8 comes from one case worth keeping: similarity pairs 19.2 `RepriceOrder`
+with 21.3 `ServiceOrder` at 0.83 and puts it first, but 21.3 replaced that empty element with
+`ReshopOrder/ReshopOrderChoice/ServiceOrder` — a structural change, which is not a rename in either
+direction. The model answers at 0.49, under the threshold, so the name goes to a person instead of
+to the top of the list. Raise or lower 0.8 on your own schema pair; it is not a constant worth
+trusting unmeasured.
+
 The IATA schemas are licensed and are **not** in this repository. Download them from IATA.
 
 ---

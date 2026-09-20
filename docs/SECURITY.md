@@ -51,6 +51,17 @@ leaving a slow or stalled client holding a connection indefinitely. Now set expl
 Response buffers were returned to the pool regardless of size, so one very large response pinned its
 capacity for the life of the process. Buffers above 32 MiB are now dropped rather than recycled.
 
+### Outbound call in `derive-mapping.py --typesafe` — accepted, off by default
+
+The flag sends IATA element **names** to `api.typesafe.ai` to order the review queue. No captured
+response, no provider data and no client identity go with them; the request carries the two version
+numbers, the unresolved names and their candidates. It runs only when the flag is passed, which is
+once per new schema generation, on a developer machine — never in the mock's request path.
+
+`TYPESAFE_API_KEY` is read from the environment only. It is not a flag (so it stays out of `argv`,
+`ps` and shell history), is never written to the mapping, and an HTTP failure reports the status
+code instead of raising through the request that holds the header.
+
 ### Client identity in the repository — fixed
 
 Real agency identifiers, an IATA number, an account code and a contact email were present in

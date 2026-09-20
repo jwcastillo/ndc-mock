@@ -82,7 +82,8 @@ make image       # distroless image; mount references at /stubs
   published as 21.3.6 is 24.1.
 - **Mappings are derived, never hand-written**: `tools/derive-mapping.py`, checked on paths with
   `tools/compare-paths.py`, final word `tools/validate-translation.sh <version> <xsd-dir>`. The XSDs
-  are licensed by IATA and are not in the repository.
+  are licensed by IATA and are not in the repository. `--typesafe` orders the names similarity could
+  not settle into a review queue (`review` key); it never writes `rename`.
 
 ### Per-request dials (for sweeping in a load test without restarts)
 
