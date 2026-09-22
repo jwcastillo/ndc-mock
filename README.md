@@ -305,10 +305,51 @@ tools/compare-paths.py 19.2/IATA_AirShoppingRS.xsd 24_1_distribution_schemas/IAT
 ```
 
 For every name that the later generation lacks, the tool prints each place it was used, whether
-that parent still exists, and what is new under it. It follows `xs:import`, which matters because
+that parent still exists, and what is new under it. `--typesafe` annotates each of those with a
+reading — `renamed to X 0.87`, `restructured: wrapped in Y`, and what came second when it was
+close. Wraps are settled in code, from the paths alone: the old name reappearing inside a candidate,
+or a candidate with one child carrying the old subtree, both prove a new level rather than a new
+name. Only what that cannot decide is asked.
+
+Nothing is auto-accepted and there is no threshold. Measured on the real schemas — 19.2
+`IATA_AirShoppingRS.xsd` against the 21.3 and the 24.1 distributions, 87 and 86 unresolved paths,
+about 3 seconds and one request each — the readings agree with the shipped mapping on **19 of the
+22 paths that mapping covers**, the same score on both pairs. Every rename is right: 4 of 4 per
+pair, at 0.71 to 0.97, and no path the mapping drops was ever read as a rename.
+
+The three disagreements are the same failure both times, and they are the reason there is no
+threshold. `DataLists/FareList`, `DataLists/MediaList` and `Offer/OwnerTypeCode` are drops, and all
+three were read as restructures at 0.81, 0.62 and 0.41 — the parent gained unrelated children and
+that was enough. Nothing in the paths separates them from a rename, either: `CharacteristicCode`
+also vanishes from 21.3 completely and *is* renamed. Trust a rename reading; check a restructure
+yourself. It follows `xs:import`, which matters because
 from 21.3 the types live in `IATA_OffersAndOrdersCommonTypes.xsd`. It also reads IATA's SVG
 diagrams, and on 24.1 it agrees with the XSD on 2,046 of 2,054 paths (the gap is digital-signature
 elements). `validate-translation.sh` then has the final word.
+
+What string similarity cannot settle it dumps in a list for someone to read. `--typesafe` sorts
+that list instead, asking a [TypeSafe](https://typesafe.ai) Choice per leftover name — the closest
+target names plus *none of these* — and routing each answer by its own confidence into a proposed
+rename, a proposed drop, or too uncertain to say:
+
+```bash
+export TYPESAFE_API_KEY=...          # from a gitignored *.env, like the provider credentials
+tools/derive-mapping.py 19.2/ 25_1/ --from-version 19.2 --to-version 25.1 --typesafe
+```
+
+Only element **names** leave the machine, never a captured response, and the key is read from the
+environment alone: it is not a flag, and it is not written to the mapping.
+
+The proposals land in a `review` key, never in `rename`. Reading order is all they are: a rename
+still has to hold up on paths and then validate, because a wrong one produces a document that looks
+converted and is not.
+
+The default threshold of 0.8 comes from one case worth keeping: similarity pairs 19.2 `RepriceOrder`
+with 21.3 `ServiceOrder` at 0.83 and puts it first, but 21.3 replaced that empty element with
+`ReshopOrder/ReshopOrderChoice/ServiceOrder` — a structural change, which is not a rename in either
+direction. The model answers at 0.49, under the threshold, so the name goes to a person instead of
+to the top of the list. Raise or lower 0.8 on your own schema pair; it is not a constant worth
+trusting unmeasured.
 
 The IATA schemas are licensed and are **not** in this repository. Download them from IATA.
 

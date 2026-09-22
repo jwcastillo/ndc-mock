@@ -13,9 +13,15 @@ Likely renames are paired by normalised similarity and emitted as comments for a
 human to confirm. Nothing is auto-accepted: a wrong rename is worse than a
 missing one, because it produces a document that looks converted and is not.
 
+--typesafe puts the leftovers in a useful order instead of an alphabetical one: one
+TypeSafe Choice per unresolved name, over the target names string similarity found
+closest plus a none-of-these option, routed by the answer's own confidence into
+proposed rename / proposed drop / too uncertain. It writes nothing into the mapping.
+Needs TYPESAFE_API_KEY.
+
 Usage:
   derive-mapping.py <from.xsd|dir> <to.xsd|dir> --from-version 19.2 --to-version 21.3 \\
-      [--out translations/19.2-to-21.3.json]
+      [--out translations/19.2-to-21.3.json] [--typesafe]
 
 Get the schemas from https://airtechzone.iata.org/labs/tools/xsd-viewer.html
 """
@@ -28,6 +34,8 @@ import json
 import re
 import sys
 from pathlib import Path
+
+import typesafe_client
 
 XSD_NS = "{http://www.w3.org/2001/XMLSchema}"
 NAME_RE = re.compile(r'<xs:element[^>]*\bname="([^"]+)"', re.I)
@@ -122,7 +130,85 @@ def pair_candidates(only_from: set[str], only_to: set[str]) -> list[tuple[str, s
     return pairs
 
 
+NO_MATCH = "none_of_these"
+SHORTLIST = 8          # candidate target names offered per source name
+
+RENAME_QUESTION = (
+    "IATA renames some elements between NDC schema generations. Which of the target-schema "
+    "element names offered is `source_element` under its new name: the same element, carrying "
+    "the same data, in the same role? Answer " + NO_MATCH + " if `source_element` was removed, "
+    "split, absorbed into a different structure, or if the offered names are merely "
+    "similar-looking elements that mean something else."
+)
+
+
+def shortlist(name: str, targets: list[str], n: int = SHORTLIST) -> list[str]:
+    """The n most string-similar target names. A name not offered cannot be chosen."""
+    ranked = sorted(targets, key=lambda t: difflib.SequenceMatcher(None, name, t).ratio(), reverse=True)
+    return ranked[:n]
+
+
+def triage(names: list[str], targets: list[str], from_v: str, to_v: str,
+           model: str, threshold: float) -> list[dict]:
+    """Ask one Choice per unresolved source name; route each answer by its confidence.
+
+    The model orders the review queue; it does not write the mapping. A rename it
+    proposes still has to hold up on paths (compare-paths.py) and then validate.
+    """
+    if not targets:
+        return [{"source": n, "route": "drop", "choice": NO_MATCH, "confidence": 1.0,
+                 "why": "the target inventory has no unmatched name left to rename to"}
+                for n in names]
+
+    options = {n: shortlist(n, targets) for n in names}
+    questions = {
+        n: {
+            "type": "choice",
+            "instructions": {"source_element": n, "question": RENAME_QUESTION},
+            "criteria": dict.fromkeys(options[n])
+            | {NO_MATCH: "`source_element` has no counterpart among the offered names."},
+        }
+        for n in names
+    }
+    state = {
+        "domain": "IATA NDC XML message schemas",
+        "source_version": from_v,
+        "target_version": to_v,
+    }
+    answers = typesafe_client.ask(state, questions, model)
+
+    out = []
+    for n in names:
+        choice, confidence, probability = typesafe_client.verdict(answers[n], threshold)
+        out.append({
+            "source": n,
+            "choice": answers[n]["choice"],
+            "confidence": confidence,
+            "probability": probability,
+            "route": "human" if not choice else ("drop" if choice == NO_MATCH else "rename"),
+            "considered": options[n],
+        })
+    return out
+
+
+def self_check() -> None:
+    # The shortlist only has to contain the right answer; it cannot recognise it.
+    # Here string similarity puts ServiceOrder (0.83) above RepriceOrderRequest (0.77),
+    # which is backwards - both are offered and the model decides.
+    assert set(shortlist("RepriceOrder", ["ServiceOrder", "Baggage", "RepriceOrderRequest"], 2)) \
+        == {"RepriceOrderRequest", "ServiceOrder"}, "the unrelated name must be cut, both plausible ones kept"
+    assert shortlist("X", [], 3) == []
+    v = typesafe_client.verdict
+    assert v({"choice": "A", "confidence": 0.9, "probabilities": {"A": 0.9}}, 0.8)[0] == "A"
+    assert v({"choice": "A", "confidence": 0.7, "probabilities": {"A": 0.8}}, 0.8)[0] == "", \
+        "below threshold never auto-decides"
+    print("self-check ok")
+
+
 def main() -> None:
+    if "--self-check" in sys.argv:   # no schemas needed, no network
+        self_check()
+        return
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("source")
     ap.add_argument("target")
@@ -135,6 +221,15 @@ def main() -> None:
                          "document, so like is compared with like.")
     ap.add_argument("--confidence", type=float, default=1.0,
                     help="minimum similarity to place a pair in rename rather than in notes (default 1.0: exact-after-normalisation only)")
+    ap.add_argument("--typesafe", action="store_true",
+                    help="triage the names string similarity could not settle by asking a TypeSafe "
+                         "Choice per name, and emit them as an ordered review queue. Needs "
+                         "TYPESAFE_API_KEY. Still writes nothing into rename: a proposal is a "
+                         "reading order for the reviewer, not a derivation from the schema.")
+    ap.add_argument("--typesafe-model", default=typesafe_client.DEFAULT_MODEL)
+    ap.add_argument("--typesafe-confidence", type=float, default=typesafe_client.DEFAULT_THRESHOLD,
+                    help="below this the answer is not acted on and the name goes to a human "
+                         "(default 0.8; evaluate it on your own schema pairs)")
     args = ap.parse_args()
 
     from_names, from_ns = read_schema(Path(args.source), args.elements_only)
@@ -158,6 +253,14 @@ def main() -> None:
     if not namespaces and from_ns and to_ns:
         namespaces = {sorted(from_ns)[0]: sorted(to_ns)[0]}
 
+    unresolved = [f for f, _, _ in pairs if f not in rename] + unpaired_from
+    reviewed = []
+    if args.typesafe and unresolved:
+        remaining_to = sorted(only_to - set(rename.values()))
+        reviewed = triage(unresolved, remaining_to, args.from_version, args.to_version,
+                          args.typesafe_model, args.typesafe_confidence)
+        reviewed.sort(key=lambda r: (r["route"] != "rename", -r["confidence"]))
+
     notes = [
         f"derived from {args.source} -> {args.target}",
         f"{len(identical)} names identical, {len(rename)} renamed with confidence, "
@@ -178,6 +281,15 @@ def main() -> None:
         "identical": identical,
         "notes": notes,
     }
+    if reviewed:
+        counts = {r: sum(1 for x in reviewed if x["route"] == r) for r in ("rename", "drop", "human")}
+        notes.append(
+            f"REVIEW QUEUE ({args.typesafe_model}, act above confidence {args.typesafe_confidence}): "
+            f"{counts['rename']} proposed renames, {counts['drop']} proposed drops, "
+            f"{counts['human']} too uncertain to route. Proposals are NOT part of the mapping: "
+            "confirm each on paths with compare-paths.py, then move it into rename or drop by hand."
+        )
+        out["review"] = reviewed
 
     text = json.dumps(out, indent=2, ensure_ascii=False) + "\n"
     if args.out:
@@ -188,7 +300,8 @@ def main() -> None:
 
     print(
         f"identical={len(identical)} rename={len(rename)} uncertain={len(uncertain)} "
-        f"unresolved={len(unpaired_from)} namespaces={len(namespaces)}",
+        f"unresolved={len(unpaired_from)} namespaces={len(namespaces)}"
+        + (f" reviewed={len(reviewed)}" if reviewed else ""),
         file=sys.stderr,
     )
 
